@@ -1364,13 +1364,13 @@ static int nvmon_perfworks_createConfigImage(char* chip, struct bstrList* events
     NVPW_RawMetricsConfig_GetNumPasses_Params getNumPassesParams = { NVPW_RawMetricsConfig_GetNumPasses_Params_STRUCT_SIZE };
     getNumPassesParams.pRawMetricsConfig = pRawMetricsConfig;
     LIKWID_NVPW_API_CALL((*NVPW_RawMetricsConfig_GetNumPassesPtr)(&getNumPassesParams), ierr = -1; goto nvmon_perfworks_createConfigImage_out);
-    if (getNumPassesParams.numPipelinedPasses + getNumPassesParams.numIsolatedPasses > 1)
+    /*if (getNumPassesParams.numPipelinedPasses + getNumPassesParams.numIsolatedPasses > 1)
     {
         errno = 1;
         ierr = -errno;
         ERROR_PRINT(Given GPU eventset requires multiple passes. Currently not supported.)
         goto nvmon_perfworks_createConfigImage_out;
-    }
+    }*/
 
     NVPW_RawMetricsConfig_GenerateConfigImage_Params generateConfigImageParams = { NVPW_RawMetricsConfig_GenerateConfigImage_Params_STRUCT_SIZE };
     generateConfigImageParams.pRawMetricsConfig = pRawMetricsConfig;
@@ -1799,6 +1799,7 @@ static int nvmon_perfworks_getMetricValue(char* chip, uint8_t* counterDataImage,
     setCounterDataParams.pCounterDataImage = counterDataImage;
     setCounterDataParams.isolated = 1;
     setCounterDataParams.rangeIndex = 0;
+    // printf("Call MetricsContext_SetCounterData: pMetricsContext: %x, pCounterDataimage: %x\n", metricsContextCreateParams.pMetricsContext, counterDataImage);
     LIKWID_NVPW_API_CALL((*NVPW_MetricsContext_SetCounterDataPtr)(&setCounterDataParams), ierr = -1; goto nvmon_perfworks_getMetricValue_out;);
 
     //double* gpuValues = malloc(events->qty * sizeof(double));
@@ -1927,8 +1928,8 @@ int nvmon_perfworks_startCounters(NvmonDevice_t device)
     beginSessionParams.counterDataScratchBufferSize = eventSet->counterDataScratchBufferSize;
     beginSessionParams.pCounterDataScratchBuffer = eventSet->counterDataScratchBuffer;
     GPUDEBUG_PRINT(DEBUGLEV_DEVELOP, (START) counterDataScratchBufferSize %ld, eventSet->counterDataScratchBufferSize);
-    beginSessionParams.range = CUPTI_UserRange;
-    beginSessionParams.replayMode = CUPTI_UserReplay;
+    beginSessionParams.range = CUPTI_AutoRange;
+    beginSessionParams.replayMode = CUPTI_KernelReplay;
     beginSessionParams.maxRangesPerPass = 1;
     beginSessionParams.maxLaunchesPerPass = 1;
 
@@ -1945,10 +1946,10 @@ int nvmon_perfworks_startCounters(NvmonDevice_t device)
     setConfigParams.targetNestingLevel = 1;
     LIKWID_CUPTI_API_CALL((*cuptiProfilerSetConfigPtr)(&setConfigParams), return -1);
 
-    LIKWID_CUPTI_API_CALL((*cuptiProfilerBeginPassPtr)(&beginPassParams), return -1;);
+    // LIKWID_CUPTI_API_CALL((*cuptiProfilerBeginPassPtr)(&beginPassParams), return -1;);
     LIKWID_CUPTI_API_CALL((*cuptiProfilerEnableProfilingPtr)(&enableProfilingParams), return -1);
     pushRangeParams.pRangeName = "nvmon_perfworks";
-    LIKWID_CUPTI_API_CALL((*cuptiProfilerPushRangePtr)(&pushRangeParams), return -1);
+    // LIKWID_CUPTI_API_CALL((*cuptiProfilerPushRangePtr)(&pushRangeParams), return -1);
 
     if(popContext > 0)
     {
@@ -2009,13 +2010,13 @@ int nvmon_perfworks_stopCounters(NvmonDevice_t device)
     CUpti_Profiler_EndSession_Params endSessionParams = {CUpti_Profiler_EndSession_Params_STRUCT_SIZE};
     endSessionParams.ctx = device->context;
 
-    LIKWID_CUPTI_API_CALL((*cuptiProfilerPopRangePtr)(&popRangeParams), return -1);
+    // LIKWID_CUPTI_API_CALL((*cuptiProfilerPopRangePtr)(&popRangeParams), return -1);
     LIKWID_CUPTI_API_CALL((*cuptiProfilerDisableProfilingPtr)(&disableProfilingParams), return -1);
-    LIKWID_CUPTI_API_CALL((*cuptiProfilerEndPassPtr)(&endPassParams), return -1);
-    if (endPassParams.allPassesSubmitted != 1)
+    // LIKWID_CUPTI_API_CALL((*cuptiProfilerEndPassPtr)(&endPassParams), return -1);
+    /* if (endPassParams.allPassesSubmitted != 1)
     {
         ERROR_PRINT(Events cannot be measured in a single pass and multi-pass/kernel replay is current not supported);
-    }
+    }*/
     LIKWID_CUPTI_API_CALL((*cuptiProfilerFlushCounterDataPtr)(&flushCounterDataParams), return -1);
     LIKWID_CUPTI_API_CALL((*cuptiProfilerUnsetConfigPtr)(&unsetConfigParams), return -1);
     LIKWID_CUPTI_API_CALL((*cuptiProfilerEndSessionPtr)(&endSessionParams), return -1);
